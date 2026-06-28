@@ -12,18 +12,17 @@
 |
 */
 
-import ConfigureCommand from '@adonisjs/core/commands/configure'
-import { stubsRoot } from './stubs/main.js'
+import ConfigureCommand from "@adonisjs/core/commands/configure";
+import { stubsRoot } from "./stubs/main.js";
 
 export async function configure(command: ConfigureCommand) {
-    const codemods = await command.createCodemods()
+  const codemods = await command.createCodemods();
 
-    await codemods.makeUsingStub(stubsRoot, 'start/scheduler.stub', {})
+  await codemods.makeUsingStub(stubsRoot, "start/scheduler.stub", {});
 
-
-    await codemods.updateRcFile((rcFile: any) => {
-        rcFile.addProvider('adonisjs-scheduler/scheduler_provider', ['console'])
-        rcFile.addCommand('adonisjs-scheduler/commands')
-        rcFile.addPreloadFile('#start/scheduler', ['console'])
-    })
+  await codemods.updateRcFile((rcFile: any) => {
+    rcFile.addProvider("@codenameryuu/adonis-scheduler/scheduler_provider", ["console"]);
+    rcFile.addCommand("@codenameryuu/adonis-scheduler/commands");
+    rcFile.addPreloadFile("#start/scheduler", ["console"]);
+  });
 }

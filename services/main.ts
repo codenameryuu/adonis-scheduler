@@ -1,10 +1,10 @@
-import type { Scheduler } from '../src/scheduler.js'
-import app from '@adonisjs/core/services/app'
+import type { Scheduler } from "../src/scheduler.js";
+import app from "@adonisjs/core/services/app";
 
-let scheduler: Scheduler
+let scheduler: Scheduler;
 
 await app.booted(async () => {
-    scheduler = await app.container.make("scheduler")
-})
+  scheduler = await app.container.make("scheduler");
+});
 
-export { scheduler as default }
+export { scheduler as default };
