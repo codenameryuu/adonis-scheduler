@@ -1,5 +1,6 @@
 import type { ApplicationService } from "@adonisjs/core/types";
 import cron from "node-cron";
+import type { ScheduledTask } from "node-cron";
 import AsyncLock from "async-lock";
 import { FsLoader, Kernel } from "@adonisjs/core/ace";
 import type { BaseCommand } from "@adonisjs/core/ace";
@@ -27,7 +28,7 @@ const run = async (cb: () => any | PromiseLike<any>, options: IRunOptions) => {
 };
 
 export class Worker {
-  tasks: cron.ScheduledTask[] = [];
+  tasks: ScheduledTask[] = [];
   loaders: any[] = [];
   booted = false;
   declare kernel: Kernel;
@@ -77,59 +78,61 @@ export class Worker {
         continue;
       }
 
-      this.tasks.push(
-        cron.schedule(
-          command.expression,
-          async () => {
-            try {
-              switch (command.type) {
-                case "command":
-                  for (const callback of command.beforeCallbacks) {
-                    await callback();
-                  }
-                  await run(() => this.kernel.exec(command.commandName, command.commandArgs), {
-                    enabled: command.config.withoutOverlapping,
-                    timeout: command.config.expiresAt,
-                    key: `${index}-${command.commandName}-${command.commandArgs}`,
-                    onBusy: () => {
-                      logger.warn(`Command ${index}-${command.commandName}-${command.commandArgs} is busy`);
-                    },
-                  });
-                  for (const callback of command.afterCallbacks) {
-                    await callback();
-                  }
-                  break;
+      const taskOptions = {
+        timezone: command.config.timezone,
+      };
 
-                case "callback":
-                  for (const callback of command.beforeCallbacks) {
-                    await callback();
-                  }
-                  await run(() => command.callback(), {
-                    enabled: command.config.withoutOverlapping,
-                    timeout: command.config.expiresAt,
-                    key: `${index}-callback`,
-                    onBusy: () => {
-                      logger.warn(`Callback ${index} is busy`);
-                    },
-                  });
-                  for (const callback of command.afterCallbacks) {
-                    await callback();
-                  }
-
-                default:
-                  break;
+      const runTask = async () => {
+        try {
+          switch (command.type) {
+            case "command":
+              for (const callback of command.beforeCallbacks) {
+                await callback();
               }
-            } catch (error) {
-              logger.error(error);
-            }
-          },
-          {
-            scheduled: command.config.enabled,
-            timezone: command.config.timezone,
-            runOnInit: command.config.enabled && command.config.immediate,
+              await run(() => this.kernel.exec(command.commandName, command.commandArgs), {
+                enabled: command.config.withoutOverlapping,
+                timeout: command.config.expiresAt,
+                key: `${index}-${command.commandName}-${command.commandArgs}`,
+                onBusy: () => {
+                  logger.warn(`Command ${index}-${command.commandName}-${command.commandArgs} is busy`);
+                },
+              });
+              for (const callback of command.afterCallbacks) {
+                await callback();
+              }
+              break;
+
+            case "callback":
+              for (const callback of command.beforeCallbacks) {
+                await callback();
+              }
+              await run(() => command.callback(), {
+                enabled: command.config.withoutOverlapping,
+                timeout: command.config.expiresAt,
+                key: `${index}-callback`,
+                onBusy: () => {
+                  logger.warn(`Callback ${index} is busy`);
+                },
+              });
+              for (const callback of command.afterCallbacks) {
+                await callback();
+              }
+
+            default:
+              break;
           }
-        )
-      );
+        } catch (error) {
+          logger.error(error);
+        }
+      };
+
+      const task = command.config.enabled ? cron.schedule(command.expression, runTask, taskOptions) : cron.createTask(command.expression, runTask, taskOptions);
+
+      if (command.config.enabled && command.config.immediate) {
+        void task.execute();
+      }
+
+      this.tasks.push(task);
     }
 
     logger.info(`[${tag}] Schedule worker started successfully.`);

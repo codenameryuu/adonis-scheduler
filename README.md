@@ -17,7 +17,7 @@ yarn add @codenameryuu/adonis-scheduler
 * Add the package to the `adonisrc.ts` file
 
 ```bash
-node ace add @codenameryuu/adonis-scheduler
+node ace configure @codenameryuu/adonis-scheduler
 ```
 
 ## Running The Scheduler
